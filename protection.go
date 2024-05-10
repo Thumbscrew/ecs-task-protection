@@ -14,6 +14,12 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
+type Client interface {
+	UpdateTaskProtection(
+		ctx context.Context, params *ecs.UpdateTaskProtectionInput, optFns ...func(*ecs.Options),
+	) (*ecs.UpdateTaskProtectionOutput, error)
+}
+
 // MetadataBody represents the JSON body returned from the metadata task API
 type MetadataBody struct {
 	Cluster string `json:"Cluster"`
@@ -27,7 +33,8 @@ type MetadataBody struct {
 // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-scale-in-protection.html
 type UpdateTaskProtectionInput struct {
 	Context          context.Context
-	Client           *ecs.Client
+	Client           Client
+	Metadata         *MetadataBody
 	Protect          bool
 	ExpiresInMinutes *int32
 }
@@ -63,9 +70,15 @@ func GetTaskArn() (*MetadataBody, error) {
 // the UpdateTaskProtection ECS API to enable or disable protection. Returns any errors from the
 // ECS API or an error if task protection fails to enable.
 func UpdateTaskProtection(input *UpdateTaskProtectionInput) error {
-	metadata, err := GetTaskArn()
-	if err != nil {
-		return err
+	var metadata *MetadataBody
+	if input.Metadata == nil {
+		var err error
+		metadata, err = GetTaskArn()
+		if err != nil {
+			return err
+		}
+	} else {
+		metadata = input.Metadata
 	}
 
 	output, err := input.Client.UpdateTaskProtection(input.Context, &ecs.UpdateTaskProtectionInput{
