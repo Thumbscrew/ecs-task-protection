@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.27.0
-	github.com/aws/aws-sdk-go-v2/service/ecs v1.41.10
+	github.com/aws/aws-sdk-go-v2/service/ecs v1.41.11
 	github.com/go-resty/resty/v2 v2.13.1
 	github.com/stretchr/testify v1.9.0
 )
