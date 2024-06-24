@@ -3,7 +3,7 @@ module github.com/Thumbscrew/ecs-task-protection
 go 1.20
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.27.2
+	github.com/aws/aws-sdk-go-v2 v1.30.0
 	github.com/aws/aws-sdk-go-v2/service/ecs v1.42.0
 	github.com/go-resty/resty/v2 v2.13.1
 	github.com/stretchr/testify v1.9.0
