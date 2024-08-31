@@ -14,7 +14,8 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-type Client interface {
+// ECSClient is an interface representing the AWS ECS Client
+type ECSClient interface {
 	UpdateTaskProtection(
 		ctx context.Context, params *ecs.UpdateTaskProtectionInput, optFns ...func(*ecs.Options),
 	) (*ecs.UpdateTaskProtectionOutput, error)
@@ -26,14 +27,24 @@ type MetadataBody struct {
 	TaskARN string `json:"TaskARN"`
 }
 
+// Client is a wrapper around an ECS Client that enables and disables ECS task protection
+type Client struct {
+	ECSClient
+	MetadataEndpointOverride string
+}
+
+func NewClient(ecsClient ECSClient) *Client {
+	return &Client{
+		ECSClient: ecsClient,
+	}
+}
+
 // UpdateTaskProtectionInput defines the parameters required for UpdateTaskProtection.
 //
 // Client must not be nil. ExpiresInMinutes must be between 1 and 2880, but can be nil.
 // Setting to nil will use the default protection period. See
 // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-scale-in-protection.html
 type UpdateTaskProtectionInput struct {
-	Context          context.Context
-	Client           Client
 	Metadata         *MetadataBody
 	Protect          bool
 	ExpiresInMinutes *int32
@@ -44,14 +55,20 @@ type UpdateTaskProtectionInput struct {
 // The Instance metadata API URI is obtained through the env variable `ECS_CONTAINER_METADATA_URI_V4`.
 // Returns a pointer to struct MetadataBody representing the API response or returns an error if the
 // env variable cannot be found, the API was unreachable or the response can't be unmarshalled.
-func GetTaskArn() (*MetadataBody, error) {
-	ecsMetadataEndpoint, ok := os.LookupEnv("ECS_CONTAINER_METADATA_URI_V4")
-	if !ok {
-		return nil, errors.New("unable to retrieve Task ARN - can't get Metadata URI")
+func (c *Client) GetTaskArn(ctx context.Context) (*MetadataBody, error) {
+	ecsMetadataEndpoint := c.MetadataEndpointOverride
+
+	if ecsMetadataEndpoint == "" {
+		var ok bool
+		ecsMetadataEndpoint, ok = os.LookupEnv("ECS_CONTAINER_METADATA_URI_V4")
+		if !ok {
+			return nil, errors.New("unable to retrieve Task ARN - can't get Metadata URI")
+		}
 	}
 
 	client := resty.New()
-	res, err := client.R().Get(ecsMetadataEndpoint + "/task")
+	client.SetBaseURL(ecsMetadataEndpoint)
+	res, err := client.R().SetContext(ctx).Get("/task")
 	if err != nil {
 		return nil, err
 	}
@@ -66,22 +83,22 @@ func GetTaskArn() (*MetadataBody, error) {
 
 // UpdateTaskProtection uses the provided input to enable or disable task protection.
 //
-// UpdateTaskProtection makes calls GetTaskArn to retrieve the Cluster and Task ARN and then calls
-// the UpdateTaskProtection ECS API to enable or disable protection. Returns any errors from the
-// ECS API or an error if task protection fails to enable.
-func UpdateTaskProtection(input *UpdateTaskProtectionInput) error {
+// UpdateTaskProtection calls GetTaskArn to retrieve the Cluster and Task ARN and then calls the
+// UpdateTaskProtection ECS API to enable or disable protection. Directly returns the result of the
+// UpdateTaskProtection
+func (c *Client) UpdateTaskProtection(ctx context.Context, input *UpdateTaskProtectionInput) (*ecs.UpdateTaskProtectionOutput, error) {
 	var metadata *MetadataBody
 	if input.Metadata == nil {
 		var err error
-		metadata, err = GetTaskArn()
+		metadata, err = c.GetTaskArn(ctx)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	} else {
 		metadata = input.Metadata
 	}
 
-	output, err := input.Client.UpdateTaskProtection(input.Context, &ecs.UpdateTaskProtectionInput{
+	return c.ECSClient.UpdateTaskProtection(ctx, &ecs.UpdateTaskProtectionInput{
 		Cluster: aws.String(metadata.Cluster),
 		Tasks: []string{
 			metadata.TaskARN,
@@ -89,14 +106,4 @@ func UpdateTaskProtection(input *UpdateTaskProtectionInput) error {
 		ProtectionEnabled: input.Protect,
 		ExpiresInMinutes:  input.ExpiresInMinutes,
 	})
-	if err != nil {
-		return err
-	}
-
-	failures := output.Failures
-	if len(failures) > 0 && input.Protect {
-		return errors.New("failed to protect task: " + *failures[0].Reason)
-	}
-
-	return nil
 }
