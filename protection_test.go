@@ -5,6 +5,9 @@ package ecstp
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -145,6 +148,41 @@ func TestClient_UpdateTaskProtection(t *testing.T) {
 			got, err := c.UpdateTaskProtection(tt.args.ctx, tt.args.input)
 			if assert.NoError(t, err) {
 				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+}
+
+func TestClient_GetTaskArn(t *testing.T) {
+	tests := []struct {
+		name    string
+		want    *MetadataBody
+		wantErr bool
+	}{
+		{
+			name: "should return a MetadataBody with test cluster and task ARN",
+			want: &MetadataBody{
+				Cluster: "test_cluster",
+				TaskARN: "test_arn",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprint(w, `{"Cluster": "test_cluster", "TaskARN": "test_arn"}`)
+			}))
+			defer ts.Close()
+
+			c := &Client{
+				MetadataEndpointOverride: ts.URL,
+			}
+			got, err := c.GetTaskArn(context.Background())
+			if assert.NoError(t, err) {
+				assert.Equal(t, &MetadataBody{
+					Cluster: "test_cluster",
+					TaskARN: "test_arn",
+				}, got)
 			}
 		})
 	}

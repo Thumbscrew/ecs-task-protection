@@ -7,11 +7,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
-	"github.com/go-resty/resty/v2"
 )
 
 // ECSClient is an interface representing the AWS ECS Client
@@ -66,15 +67,23 @@ func (c *Client) GetTaskArn(ctx context.Context) (*MetadataBody, error) {
 		}
 	}
 
-	client := resty.New()
-	client.SetBaseURL(ecsMetadataEndpoint)
-	res, err := client.R().SetContext(ctx).Get("/task")
+	req, err := http.NewRequestWithContext(ctx, "GET", ecsMetadataEndpoint+"/task", nil)
+	if err != nil {
+		return nil, err
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	b, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
 
 	var metadata *MetadataBody
-	if err = json.Unmarshal(res.Body(), &metadata); err != nil {
+	if err = json.Unmarshal(b, &metadata); err != nil {
 		return nil, err
 	}
 
