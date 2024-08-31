@@ -5,7 +5,6 @@ package ecstp
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -19,7 +18,18 @@ type SuccessfulTestClient struct{}
 func (c *SuccessfulTestClient) UpdateTaskProtection(
 	ctx context.Context, params *ecs.UpdateTaskProtectionInput, optFns ...func(*ecs.Options),
 ) (*ecs.UpdateTaskProtectionOutput, error) {
-	return &ecs.UpdateTaskProtectionOutput{}, nil
+	protectedTasks := make([]types.ProtectedTask, len(params.Tasks))
+
+	for i, task := range params.Tasks {
+		protectedTasks[i] = types.ProtectedTask{
+			TaskArn:           &task,
+			ProtectionEnabled: params.ProtectionEnabled,
+		}
+	}
+
+	return &ecs.UpdateTaskProtectionOutput{
+		ProtectedTasks: protectedTasks,
+	}, nil
 }
 
 type FailureTestClient struct{}
@@ -27,68 +37,114 @@ type FailureTestClient struct{}
 func (c *FailureTestClient) UpdateTaskProtection(
 	ctx context.Context, params *ecs.UpdateTaskProtectionInput, optFns ...func(*ecs.Options),
 ) (*ecs.UpdateTaskProtectionOutput, error) {
+	failedTasks := make([]types.Failure, len(params.Tasks))
+
+	for i, task := range params.Tasks {
+		failedTasks[i] = types.Failure{
+			Arn:    &task,
+			Reason: aws.String("failed"),
+		}
+	}
+
 	return &ecs.UpdateTaskProtectionOutput{
-		Failures: []types.Failure{
-			{
-				Reason: aws.String("test"),
-			},
-		},
+		Failures: failedTasks,
 	}, nil
 }
 
-type UpdateTaskProtectionTest struct {
-	Name     string
-	Input    *UpdateTaskProtectionInput
-	ExpError string
-}
-
-func TestUpdateTaskProtection(t *testing.T) {
-	tests := []UpdateTaskProtectionTest{
+func TestClient_UpdateTaskProtection(t *testing.T) {
+	type fields struct {
+		ECSClient                ECSClient
+		MetadataEndpointOverride string
+	}
+	type args struct {
+		ctx   context.Context
+		input *UpdateTaskProtectionInput
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *ecs.UpdateTaskProtectionOutput
+		wantErr bool
+	}{
 		{
-			Name: "failures from the ECS API should cause an error to be returned",
-			Input: &UpdateTaskProtectionInput{
-				Context: context.TODO(),
-				Client:  &FailureTestClient{},
-				Metadata: &MetadataBody{
-					Cluster: "test",
-					TaskARN: "test",
-				},
-				Protect: true,
+			name: "should return a successful response with protection enabled",
+			fields: fields{
+				ECSClient: &SuccessfulTestClient{},
 			},
-			ExpError: "failed to protect task: test",
+			args: args{
+				ctx: context.Background(),
+				input: &UpdateTaskProtectionInput{
+					Metadata: &MetadataBody{
+						TaskARN: "test",
+					},
+					Protect: true,
+				},
+			},
+			want: &ecs.UpdateTaskProtectionOutput{
+				ProtectedTasks: []types.ProtectedTask{
+					{
+						TaskArn:           aws.String("test"),
+						ProtectionEnabled: true,
+					},
+				},
+			},
 		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.Name, func(t *testing.T) {
-			err := UpdateTaskProtection(test.Input)
-			assert.Error(t, err)
-			assert.Equal(t, test.ExpError, err.Error())
-		})
-	}
-}
-
-type GetTaskArnTest struct {
-	Name     string
-	ExpError string
-}
-
-func TestGetTaskArn(t *testing.T) {
-	os.Unsetenv("ECS_CONTAINER_METADATA_URI_V4")
-
-	tests := []GetTaskArnTest{
 		{
-			Name:     "should throw an error when ECS_CONTAINER_METADATA_URI_V4 env var is not set",
-			ExpError: "unable to retrieve Task ARN - can't get Metadata URI",
+			name: "should return a successful response with protection disabled",
+			fields: fields{
+				ECSClient: &SuccessfulTestClient{},
+			},
+			args: args{
+				ctx: context.Background(),
+				input: &UpdateTaskProtectionInput{
+					Metadata: &MetadataBody{
+						TaskARN: "test",
+					},
+					Protect: false,
+				},
+			},
+			want: &ecs.UpdateTaskProtectionOutput{
+				ProtectedTasks: []types.ProtectedTask{
+					{
+						TaskArn:           aws.String("test"),
+						ProtectionEnabled: false,
+					},
+				},
+			},
+		},
+		{
+			name: "should return a response with protection failures",
+			fields: fields{
+				ECSClient: &FailureTestClient{},
+			},
+			args: args{
+				ctx: context.Background(),
+				input: &UpdateTaskProtectionInput{
+					Metadata: &MetadataBody{
+						TaskARN: "test",
+					},
+				},
+			},
+			want: &ecs.UpdateTaskProtectionOutput{
+				Failures: []types.Failure{
+					{
+						Arn:    aws.String("test"),
+						Reason: aws.String("failed"),
+					},
+				},
+			},
 		},
 	}
-
-	for _, test := range tests {
-		t.Run(test.Name, func(t *testing.T) {
-			meta, err := GetTaskArn()
-			assert.Nil(t, meta)
-			if assert.Error(t, err) {
-				assert.Equal(t, test.ExpError, err.Error())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Client{
+				ECSClient:                tt.fields.ECSClient,
+				MetadataEndpointOverride: tt.fields.MetadataEndpointOverride,
+			}
+			got, err := c.UpdateTaskProtection(tt.args.ctx, tt.args.input)
+			if assert.NoError(t, err) {
+				assert.Equal(t, tt.want, got)
 			}
 		})
 	}
