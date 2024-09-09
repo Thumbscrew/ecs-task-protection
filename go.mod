@@ -5,7 +5,7 @@ go 1.21
 toolchain go1.22.6
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.30.4
+	github.com/aws/aws-sdk-go-v2 v1.30.5
 	github.com/aws/aws-sdk-go-v2/service/ecs v1.45.2
 	github.com/stretchr/testify v1.9.0
 )
