@@ -1,6 +1,6 @@
 // Package ecstp (ecs-task-protection) provides an easy function for enabling and disabling ECS
 // task termination protection and can be called from inside an ECS task. See
-// https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-scale-in-protection.html
+// https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-scale-in-protection.html.
 package ecstp
 
 import (
@@ -15,20 +15,20 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 )
 
-// ECSClient is an interface representing the AWS ECS Client
+// ECSClient is an interface representing the AWS ECS Client.
 type ECSClient interface {
 	UpdateTaskProtection(
 		ctx context.Context, params *ecs.UpdateTaskProtectionInput, optFns ...func(*ecs.Options),
 	) (*ecs.UpdateTaskProtectionOutput, error)
 }
 
-// MetadataBody represents the JSON body returned from the metadata task API
+// MetadataBody represents the JSON body returned from the metadata task API.
 type MetadataBody struct {
 	Cluster string `json:"Cluster"`
 	TaskARN string `json:"TaskARN"`
 }
 
-// Client is a wrapper around an ECS Client that enables and disables ECS task protection
+// Client is a wrapper around an ECS Client that enables and disables ECS task protection.
 type Client struct {
 	ECSClient
 	MetadataEndpointOverride string
@@ -42,9 +42,10 @@ func NewClient(ecsClient ECSClient) *Client {
 
 // UpdateTaskProtectionInput defines the parameters required for UpdateTaskProtection.
 //
-// Client must not be nil. ExpiresInMinutes must be between 1 and 2880, but can be nil.
-// Setting to nil will use the default protection period. See
-// https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-scale-in-protection.html
+// If Metadata is nil, UpdateTaskProtection will attempt to get the metadata via GetTaskArn.
+// ExpiresInMinutes must be between 1 and 2880, but can be nil. Setting to nil will use the default
+// protection period. See
+// https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-scale-in-protection.html.
 type UpdateTaskProtectionInput struct {
 	Metadata         *MetadataBody
 	Protect          bool
@@ -92,9 +93,9 @@ func (c *Client) GetTaskArn(ctx context.Context) (*MetadataBody, error) {
 
 // UpdateTaskProtection uses the provided input to enable or disable task protection.
 //
-// UpdateTaskProtection calls GetTaskArn to retrieve the Cluster and Task ARN and then calls the
-// UpdateTaskProtection ECS API to enable or disable protection. Directly returns the result of the
-// UpdateTaskProtection
+// UpdateTaskProtection calls GetTaskArn to retrieve the Cluster and Task ARN (if not provided via
+// Metadata in input) and then calls the UpdateTaskProtection ECS API to enable or disable
+// protection. Directly returns the result of the UpdateTaskProtection.
 func (c *Client) UpdateTaskProtection(ctx context.Context, input *UpdateTaskProtectionInput) (*ecs.UpdateTaskProtectionOutput, error) {
 	var metadata *MetadataBody
 	if input.Metadata == nil {
