@@ -187,3 +187,25 @@ func TestClient_GetTaskArn(t *testing.T) {
 		})
 	}
 }
+
+func TestNewClient(t *testing.T) {
+	type args struct {
+		ecsClient ECSClient
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "should test ECS client compatibility with ECSClient interface",
+			args: args{
+				ecsClient: ecs.New(ecs.Options{}),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_ = NewClient(tt.args.ecsClient)
+		})
+	}
+}
