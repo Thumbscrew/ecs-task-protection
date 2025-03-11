@@ -1,4 +1,4 @@
-module github.com/Thumbscrew/ecs-task-protection
+module github.com/Thumbscrew/ecs-task-protection/v2
 
 go 1.22
 
