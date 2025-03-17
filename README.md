@@ -1,5 +1,5 @@
 # ecs-task-protection
-[![Go](https://github.com/Thumbscrew/ecs-task-protection/actions/workflows/go.yml/badge.svg)](https://github.com/Thumbscrew/ecs-task-protection/actions/workflows/go.yml)[![API Reference](https://img.shields.io/badge/api-reference-blue.svg)](https://pkg.go.dev/github.com/Thumbscrew/ecs-task-protection)
+[![Go](https://github.com/Thumbscrew/ecs-task-protection/actions/workflows/go.yml/badge.svg)](https://github.com/Thumbscrew/ecs-task-protection/actions/workflows/go.yml)[![API Reference](https://img.shields.io/badge/api-reference-blue.svg)](https://pkg.go.dev/github.com/Thumbscrew/ecs-task-protection/v2)
 
 Small Go module to enable/disable protection for an ECS task.
 
