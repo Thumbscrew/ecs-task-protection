@@ -2,11 +2,9 @@ module github.com/Thumbscrew/ecs-task-protection/v2
 
 go 1.22
 
-toolchain go1.23.5
-
 require (
 	github.com/aws/aws-sdk-go-v2 v1.36.3
-	github.com/aws/aws-sdk-go-v2/service/ecs v1.54.1
+	github.com/aws/aws-sdk-go-v2/service/ecs v1.54.2
 	github.com/stretchr/testify v1.10.0
 )
 
