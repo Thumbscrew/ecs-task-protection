@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.38.3
-	github.com/aws/aws-sdk-go-v2/service/ecs v1.63.4
+	github.com/aws/aws-sdk-go-v2/service/ecs v1.63.5
 	github.com/stretchr/testify v1.11.1
 )
 
